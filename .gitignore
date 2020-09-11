@@ -1,0 +1,6 @@
+# ignore terraform generated files
+terraform/.terraform/
+terraform/terraform.tfstate.d/
+terraform/*.tfplan
+code/
+*.svg

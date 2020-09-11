@@ -1,0 +1,30 @@
+- hosts: all
+  vars:
+    ansible_site_path: 'C:\inetpub\wwwroot\telemed'
+    staging_path: "c:\\deploy"
+    source_code_path: ../code
+  tasks:
+  - name: Create directory for staging
+    win_file: 
+      path: "{{ staging_path }}"
+      state: directory
+
+  - name: Create directory for web site
+    win_file: 
+      path: "{{ ansible_site_path }}"
+      state: directory
+
+  - name: Create web site
+    win_iis_website:
+      name: abs.pacsquare.net
+      hostname: abs.pacsquare.net
+      state: started
+      port: 80
+      ip: 127.0.0.1
+      application_pool: DefaultAppPool
+      physical_path: "{{ ansible_site_path }}"
+
+  - name: Upload file paths
+    win_copy:
+        src: "{{ source_code_path }}"
+        dest: "{{ staging_path }}"

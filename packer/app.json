@@ -1,0 +1,68 @@
+{
+    "variables": {
+        "tenant_id": "{{env `ARM_TENANT_ID`}}",
+        "client_id": "{{env `ADOS-SP-CLIENT-ID`}}",
+        "client_secret": "{{env `ADOS-SP-CLIENT-SECRET`}}",
+        "subscription_id": "{{env `ARM_SUBSCRIPTION_ID`}}",
+        "playbook_drop_path": "",
+        "image_prefix": "{{timestamp}}",
+        "managed_image_name": "myAppName-image",
+        "resource_group_name":"general-rg"
+    },
+
+    "builders": [{
+        "type": "azure-arm",
+    
+        "client_id": "{{user `client_id`}}",
+        "client_secret": "{{user `client_secret`}}",
+        "subscription_id": "{{user `subscription_id`}}",
+        "tenant_id": "{{user `tenant_id`}}",
+        
+        "os_type": "Windows",
+        "vm_size": "Standard_D2_v2",
+    
+        "shared_image_gallery": {
+            "subscription":"{{user `subscription_id`}}",
+            "resource_group": "general-rg",
+            "gallery_name": "mySharedImageGallery",
+            "image_name": "windows-2016-datacenter-bareIIS",
+            "image_version": "1.0.0"
+        },
+        "managed_image_name": "{{user `managed_image_name`}}-{{isotime \"2006.01.02\"}}",
+        "managed_image_resource_group_name": "{{user `resource_group_name`}}",
+
+        "shared_image_gallery_destination": {
+            "resource_group": "general-rg",
+            "gallery_name": "mySharedImageGallery",
+            "image_name": "myAppName",
+            "image_version": "{{isotime \"2006.01.02\"}}",
+            "replication_regions": ["eastus2"]
+        },
+    
+        "location": "eastus2",
+
+        "communicator": "winrm",
+        "winrm_use_ssl": "true",
+        "winrm_insecure": "true",
+        "winrm_timeout": "3m",
+        "winrm_username": "packer"
+    }],
+
+    "provisioners": [{
+            "type": "powershell",
+            "script": "./ConfigureRemotingForAnsible.ps1"
+        }, {
+            "type": "ansible",
+            "playbook_file": "../ansible/iis.yml",
+            "user": "packer",
+            "use_proxy": false,
+            "extra_arguments": ["-e", "ansible_winrm_server_cert_validation=ignore"],
+            "keep_inventory_file": true
+        },{
+            "type": "powershell",
+            "inline": [
+            "& $env:SystemRoot\\System32\\Sysprep\\Sysprep.exe /oobe /generalize /quiet /quit",
+            "while($true) { $imageState = Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State | Select ImageState; if($imageState.ImageState -ne 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { Write-Output $imageState.ImageState; Start-Sleep -s 10  } else { break } }"
+            ]
+        }]
+}
